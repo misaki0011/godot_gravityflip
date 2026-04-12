@@ -29,9 +29,12 @@ var _is_paused := false
 var _score_label: Label
 var _pause_overlay: ColorRect
 var _music_button: Button
+var _pause_button: Button
 var _tile_size := 128.0
 var _sz: Dictionary
 var _reduction_count := 0
+var _ignore_mouse_until_ms := 0
+var _last_flip_ms := 0
 
 func _init(data: Dictionary, attempt: int, music_on: bool) -> void:
 	level_data = data
@@ -40,6 +43,7 @@ func _init(data: Dictionary, attempt: int, music_on: bool) -> void:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	set_process_input(true)
 	_build_world()
 	_build_ui()
 
@@ -47,6 +51,15 @@ func _process(delta: float) -> void:
 	if _is_finished or _is_paused:
 		return
 	_elapsed += delta
+
+	# Fallback for browsers/devices where tap propagation differs.
+	if Input.is_action_just_pressed("flip"):
+		if _is_pointer_over_pause_button():
+			return
+		var now_ms := Time.get_ticks_msec()
+		if now_ms - _last_flip_ms >= 120 and _player:
+			_last_flip_ms = now_ms
+			_player.flip_gravity()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _is_finished:
@@ -60,10 +73,48 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _is_paused:
 		return
 
-	if event.is_action_pressed("flip") or event is InputEventScreenTouch and event.pressed or event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	if event.is_action_pressed("flip"):
 		if _player:
 			_player.flip_gravity()
 			get_viewport().set_input_as_handled()
+
+func _input(event: InputEvent) -> void:
+	if _is_finished or _is_paused:
+		return
+
+	var now_ms := Time.get_ticks_msec()
+	var tap_position := Vector2.ZERO
+	var is_tap := false
+	if event is InputEventScreenTouch and event.pressed:
+		is_tap = true
+		tap_position = event.position
+		# Mobile/web often emits a synthetic mouse click after touch.
+		_ignore_mouse_until_ms = now_ms + 350
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if now_ms < _ignore_mouse_until_ms:
+			return
+		is_tap = true
+		tap_position = event.position
+
+	if not is_tap:
+		return
+
+	if is_instance_valid(_pause_button):
+		if _pause_button.get_global_rect().has_point(tap_position):
+			return
+
+	if now_ms - _last_flip_ms < 120:
+		return
+
+	if _player:
+		_last_flip_ms = now_ms
+		_player.flip_gravity()
+		get_viewport().set_input_as_handled()
+
+func _is_pointer_over_pause_button() -> bool:
+	if not is_instance_valid(_pause_button):
+		return false
+	return _pause_button.get_global_rect().has_point(get_viewport().get_mouse_position())
 
 func _build_world() -> void:
 	var colors: Dictionary = level_data.colors
@@ -166,9 +217,11 @@ func _build_ui() -> void:
 
 	var hud := Control.new()
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(hud)
 
 	var score_top := CenterContainer.new()
+	score_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	score_top.anchor_left = 0.0
 	score_top.anchor_right = 1.0
 	score_top.anchor_top = 0.0
@@ -178,10 +231,12 @@ func _build_ui() -> void:
 	hud.add_child(score_top)
 
 	var score_panel := UI_FACTORY.build_panel()
+	score_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	score_panel.custom_minimum_size = Vector2(minf(560.0, vp.x - 48.0), clampf(vp.y * 0.14, 90.0, 130.0))
 	score_top.add_child(score_panel)
 
 	var score_box := VBoxContainer.new()
+	score_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	score_box.add_theme_constant_override("separation", 6)
 	score_panel.add_child(UI_FACTORY.apply_margin(score_box, 16))
 
@@ -195,19 +250,19 @@ func _build_ui() -> void:
 	var pause_btn_w := maxf(170.0, _sz.btn_height * 3.0)
 	var pause_margin_x := maxf(12.0, vp.x * 0.012)
 	var pause_margin_y := maxf(12.0, vp.y * 0.015)
-	var pause_button := UI_FACTORY.build_button("Pause", "utility", 999)
-	pause_button.custom_minimum_size = Vector2(pause_btn_w, _sz.btn_height)
-	pause_button.add_theme_font_size_override("font_size", _sz.btn_font)
-	pause_button.anchor_left = 1.0
-	pause_button.anchor_right = 1.0
-	pause_button.anchor_top = 0.0
-	pause_button.anchor_bottom = 0.0
-	pause_button.offset_left = -(pause_btn_w + pause_margin_x)
-	pause_button.offset_right = -pause_margin_x
-	pause_button.offset_top = pause_margin_y
-	pause_button.offset_bottom = pause_margin_y + _sz.btn_height
-	pause_button.pressed.connect(_toggle_pause)
-	hud.add_child(pause_button)
+	_pause_button = UI_FACTORY.build_button("Pause", "utility", 999)
+	_pause_button.custom_minimum_size = Vector2(pause_btn_w, _sz.btn_height)
+	_pause_button.add_theme_font_size_override("font_size", _sz.btn_font)
+	_pause_button.anchor_left = 1.0
+	_pause_button.anchor_right = 1.0
+	_pause_button.anchor_top = 0.0
+	_pause_button.anchor_bottom = 0.0
+	_pause_button.offset_left = -(pause_btn_w + pause_margin_x)
+	_pause_button.offset_right = -pause_margin_x
+	_pause_button.offset_top = pause_margin_y
+	_pause_button.offset_bottom = pause_margin_y + _sz.btn_height
+	_pause_button.pressed.connect(_toggle_pause)
+	hud.add_child(_pause_button)
 
 	_pause_overlay = ColorRect.new()
 	_pause_overlay.color = Color(0.05, 0.08, 0.12, 0.86)
