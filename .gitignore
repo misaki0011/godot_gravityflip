@@ -1,0 +1,14 @@
+.godot/
+build/
+
+# OS/editor clutter
+.DS_Store
+Thumbs.db
+
+AGENTS.md
+
+project_docs/
+
+.github/copilot-instructions.md
+
+.codex
