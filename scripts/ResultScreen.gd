@@ -26,7 +26,7 @@ func _init(state, music_enabled: bool = false) -> void:
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var vp := get_viewport_rect().size
-	_sz = UI_FACTORY.layout_scale(vp.y)
+	_sz = UI_FACTORY.layout_scale(vp)
 	var result: Dictionary = _state.last_result
 	var success := bool(result.success)
 
@@ -48,24 +48,24 @@ func _ready() -> void:
 	add_child(center)
 
 	var margins := MarginContainer.new()
-	margins.add_theme_constant_override("margin_left", 24)
-	margins.add_theme_constant_override("margin_top", 24)
-	margins.add_theme_constant_override("margin_right", 24)
-	margins.add_theme_constant_override("margin_bottom", 24)
+	margins.add_theme_constant_override("margin_left", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_top", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_right", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_bottom", _sz.screen_margin)
 	center.add_child(margins)
 
 	var panel := UI_FACTORY.build_panel()
-	panel.custom_minimum_size = Vector2(minf(560.0, vp.x - 48.0), 0.0)
+	panel.custom_minimum_size = Vector2(clampf(vp.x - _sz.screen_margin * 2.0, 340.0, 860.0 if _sz.is_phone else 640.0), 0.0)
 	margins.add_child(panel)
 
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 18)
-	panel.add_child(UI_FACTORY.apply_margin(box, 28))
+	box.add_theme_constant_override("separation", _sz.panel_gap)
+	panel.add_child(UI_FACTORY.apply_margin(box, _sz.panel_pad))
 
 	var title_row := HBoxContainer.new()
 	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	title_row.add_theme_constant_override("separation", 12)
+	title_row.add_theme_constant_override("separation", maxi(10, int(_sz.music_icon * 0.24)))
 	box.add_child(title_row)
 
 	_toggle_button = UI_FACTORY.build_button("", "utility")

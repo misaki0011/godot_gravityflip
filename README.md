@@ -26,6 +26,7 @@ Gravity Flip Lab is a simple 2D educational action game built in Godot 4. The pl
 - The pause menu supports Resume, Restart, Back To Menu, and Music ON/OFF.
 - Music defaults to OFF on first launch, and that state is preserved when moving between screens.
 - Action button minimum heights are now derived from viewport height ratios across title/menu/level/result screens for smartphone-friendly tapping.
+- Menu, level, and result screens now use a smartphone-aware size profile with larger text, larger action buttons, and wider panels on narrow screens for easier reading.
 - Title `How To Play` overlay now uses a concise description, a single input hint line (`Tap screen or press Space to flip gravity.`), and the `tap_space.png` image.
 
 ## Controls

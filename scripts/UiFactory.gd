@@ -88,19 +88,30 @@ static func touch_label_size(viewport_height: float, ratio: float = 0.045, min_s
 	return clampi(int(round(viewport_height * ratio)), min_size, max_size)
 
 # Returns all viewport-scaled sizes for a screen in one call.
-# Usage:  var _sz := UI_FACTORY.layout_scale(get_viewport_rect().size.y)
-# Keys:   btn_height, btn_font, music_icon,
+# Usage:  var _sz := UI_FACTORY.layout_scale(get_viewport_rect().size)
+# Keys:   is_phone, screen_margin, panel_pad, panel_gap,
+#         btn_height, btn_font, music_icon,
 #         title_large, title_score, body, hint
-static func layout_scale(viewport_height: float) -> Dictionary:
-	var btn_h := clampf(viewport_height * 0.08, 58.0, 84.0)
+static func layout_scale(viewport_size) -> Dictionary:
+	var vp: Vector2 = viewport_size if viewport_size is Vector2 else Vector2(float(viewport_size), float(viewport_size))
+	var short_edge := minf(vp.x, vp.y)
+	var portrait := vp.y > vp.x * 1.1
+	# Web/mobile can report high-DPI physical sizes (e.g. 1080x2400), so detect phone by shape too.
+	var is_phone := short_edge <= 760.0 or (portrait and short_edge <= 1280.0 and vp.y / maxf(1.0, vp.x) >= 1.4)
+	var btn_ratio := 0.098 if is_phone else 0.082
+	var btn_h := clampf(vp.y * btn_ratio, 80.0 if is_phone else 62.0, 128.0 if is_phone else 92.0)
 	return {
+		"is_phone":     is_phone,
+		"screen_margin": 16 if is_phone else 24,
+		"panel_pad":    28 if is_phone else 28,
+		"panel_gap":    24 if is_phone else 18,
 		"btn_height":   btn_h,
-		"btn_font":     maxi(22, int(round(btn_h * 0.42))),
-		"music_icon":   clampf(viewport_height * 0.05, 36.0, 50.0),
-		"title_large":  clampi(int(round(viewport_height * 0.058)), 32, 48),
-		"title_score":  clampi(int(round(viewport_height * 0.050)), 28, 42),
-		"body":         clampi(int(round(viewport_height * 0.038)), 20, 28),
-		"hint":         clampi(int(round(viewport_height * 0.030)), 16, 22),
+		"btn_font":     maxi(30 if is_phone else 22, int(round(btn_h * (0.44 if is_phone else 0.42)))),
+		"music_icon":   clampf(vp.y * (0.065 if is_phone else 0.05), 50.0 if is_phone else 36.0, 72.0 if is_phone else 50.0),
+		"title_large":  clampi(int(round(vp.y * (0.074 if is_phone else 0.058))), 44 if is_phone else 32, 72 if is_phone else 48),
+		"title_score":  clampi(int(round(vp.y * (0.064 if is_phone else 0.050))), 38 if is_phone else 28, 62 if is_phone else 42),
+		"body":         clampi(int(round(vp.y * (0.050 if is_phone else 0.038))), 28 if is_phone else 20, 44 if is_phone else 28),
+		"hint":         clampi(int(round(vp.y * (0.040 if is_phone else 0.030))), 22 if is_phone else 16, 34 if is_phone else 22),
 	}
 
 static func _color_for_role(role: String) -> Color:

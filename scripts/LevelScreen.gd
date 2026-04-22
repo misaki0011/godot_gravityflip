@@ -210,7 +210,7 @@ func _build_world() -> void:
 
 func _build_ui() -> void:
 	var vp := get_viewport_rect().size
-	_sz = UI_FACTORY.layout_scale(vp.y)
+	_sz = UI_FACTORY.layout_scale(vp)
 	var layer := CanvasLayer.new()
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(layer)
@@ -220,25 +220,36 @@ func _build_ui() -> void:
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(hud)
 
-	var score_top := CenterContainer.new()
-	score_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	score_top.anchor_left = 0.0
-	score_top.anchor_right = 1.0
-	score_top.anchor_top = 0.0
-	score_top.anchor_bottom = 0.0
-	score_top.offset_top = maxf(10.0, vp.y * 0.015)
-	score_top.offset_bottom = maxf(130.0, vp.y * 0.18)
-	hud.add_child(score_top)
+	var pause_btn_w := maxf(200.0 if _sz.is_phone else 170.0, _sz.btn_height * 3.2)
+	var pause_margin_x := maxf(12.0, vp.x * 0.012)
+	var pause_margin_y := maxf(12.0, vp.y * 0.015)
+	var hud_gap := maxf(10.0, vp.x * 0.01)
+	var score_max_width := maxf(180.0, vp.x - float(_sz.screen_margin) * 2.0 - pause_btn_w - pause_margin_x * 2.0 - hud_gap)
+	var score_min_width := clampf(vp.x * 0.40, 180.0, 320.0)
+	var top_row := HBoxContainer.new()
+	top_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top_row.anchor_left = 0.0
+	top_row.anchor_right = 1.0
+	top_row.anchor_top = 0.0
+	top_row.anchor_bottom = 0.0
+	top_row.offset_left = _sz.screen_margin
+	top_row.offset_right = -_sz.screen_margin
+	top_row.offset_top = pause_margin_y
+	top_row.offset_bottom = pause_margin_y + clampf(vp.y * (0.20 if _sz.is_phone else 0.14), 130.0 if _sz.is_phone else 90.0, 190.0 if _sz.is_phone else 130.0)
+	top_row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	top_row.add_theme_constant_override("separation", int(hud_gap))
+	hud.add_child(top_row)
 
 	var score_panel := UI_FACTORY.build_panel()
 	score_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	score_panel.custom_minimum_size = Vector2(minf(560.0, vp.x - 48.0), clampf(vp.y * 0.14, 90.0, 130.0))
-	score_top.add_child(score_panel)
+	score_panel.custom_minimum_size = Vector2(clampf(score_max_width, score_min_width, 820.0 if _sz.is_phone else 680.0), clampf(vp.y * (0.20 if _sz.is_phone else 0.14), 130.0 if _sz.is_phone else 90.0, 190.0 if _sz.is_phone else 130.0))
+	score_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top_row.add_child(score_panel)
 
 	var score_box := VBoxContainer.new()
 	score_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	score_box.add_theme_constant_override("separation", 6)
-	score_panel.add_child(UI_FACTORY.apply_margin(score_box, 16))
+	score_box.add_theme_constant_override("separation", 8 if _sz.is_phone else 6)
+	score_panel.add_child(UI_FACTORY.apply_margin(score_box, 18 if _sz.is_phone else 16))
 
 	_score_label = UI_FACTORY.build_title_label("Score %d" % STARTING_SCORE, _sz.title_score)
 	score_box.add_child(_score_label)
@@ -247,22 +258,13 @@ func _build_ui() -> void:
 	var score_hint := UI_FACTORY.build_body_label("Hit wall / top / bottom: -10", _sz.hint, true)
 	score_box.add_child(score_hint)
 
-	var pause_btn_w := maxf(170.0, _sz.btn_height * 3.0)
-	var pause_margin_x := maxf(12.0, vp.x * 0.012)
-	var pause_margin_y := maxf(12.0, vp.y * 0.015)
 	_pause_button = UI_FACTORY.build_button("Pause", "utility", 999)
 	_pause_button.custom_minimum_size = Vector2(pause_btn_w, _sz.btn_height)
 	_pause_button.add_theme_font_size_override("font_size", _sz.btn_font)
-	_pause_button.anchor_left = 1.0
-	_pause_button.anchor_right = 1.0
-	_pause_button.anchor_top = 0.0
-	_pause_button.anchor_bottom = 0.0
-	_pause_button.offset_left = -(pause_btn_w + pause_margin_x)
-	_pause_button.offset_right = -pause_margin_x
-	_pause_button.offset_top = pause_margin_y
-	_pause_button.offset_bottom = pause_margin_y + _sz.btn_height
+	_pause_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_pause_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_pause_button.pressed.connect(_toggle_pause)
-	hud.add_child(_pause_button)
+	top_row.add_child(_pause_button)
 
 	_pause_overlay = ColorRect.new()
 	_pause_overlay.color = Color(0.05, 0.08, 0.12, 0.86)
@@ -275,23 +277,23 @@ func _build_ui() -> void:
 	_pause_overlay.add_child(center)
 
 	var margins := MarginContainer.new()
-	margins.add_theme_constant_override("margin_left", 24)
-	margins.add_theme_constant_override("margin_top", 24)
-	margins.add_theme_constant_override("margin_right", 24)
-	margins.add_theme_constant_override("margin_bottom", 24)
+	margins.add_theme_constant_override("margin_left", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_top", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_right", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_bottom", _sz.screen_margin)
 	center.add_child(margins)
 
 	var panel := UI_FACTORY.build_panel()
-	panel.custom_minimum_size = Vector2(minf(460.0, vp.x - 48.0), minf(360.0, vp.y - 96.0))
+	panel.custom_minimum_size = Vector2(clampf(vp.x - _sz.screen_margin * 2.0, 340.0, 720.0 if _sz.is_phone else 560.0), 0.0)
 	margins.add_child(panel)
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
-	panel.add_child(UI_FACTORY.apply_margin(box, 24))
+	box.add_theme_constant_override("separation", _sz.panel_gap)
+	panel.add_child(UI_FACTORY.apply_margin(box, _sz.panel_pad))
 
 	var title_row := HBoxContainer.new()
 	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	title_row.add_theme_constant_override("separation", 12)
+	title_row.add_theme_constant_override("separation", maxi(10, int(_sz.music_icon * 0.24)))
 	box.add_child(title_row)
 	title_row.add_child(UI_FACTORY.build_title_label("Paused", _sz.title_large))
 

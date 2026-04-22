@@ -18,6 +18,7 @@ var _state
 var _music_enabled := false
 var _toggle_button: Button
 var _sz: Dictionary
+var _vp: Vector2
 
 func _init(state, music_enabled: bool = false) -> void:
 	_state = state
@@ -27,30 +28,35 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_add_background()
 	var vp := get_viewport_rect().size
-	_sz = UI_FACTORY.layout_scale(vp.y)
+	_vp = vp
+	_sz = UI_FACTORY.layout_scale(vp)
 
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 
 	var margins := MarginContainer.new()
-	margins.add_theme_constant_override("margin_left", 24)
-	margins.add_theme_constant_override("margin_top", 24)
-	margins.add_theme_constant_override("margin_right", 24)
-	margins.add_theme_constant_override("margin_bottom", 24)
+	var outer_vertical_margin := maxf(float(_sz.screen_margin), vp.y * (0.11 if _sz.is_phone else 0.08))
+	margins.add_theme_constant_override("margin_left", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_top", int(outer_vertical_margin))
+	margins.add_theme_constant_override("margin_right", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_bottom", int(outer_vertical_margin))
 	center.add_child(margins)
 
 	var panel := UI_FACTORY.build_panel()
-	panel.custom_minimum_size = Vector2(minf(760.0, vp.x - 48.0), minf(620.0, vp.y - 48.0))
+	panel.custom_minimum_size = Vector2(
+		clampf(vp.x - _sz.screen_margin * 2.0, 340.0, 920.0 if _sz.is_phone else 820.0),
+		clampf(vp.y * (0.72 if _sz.is_phone else 0.68), vp.y * 0.56, vp.y - outer_vertical_margin * 2.0)
+	)
 	margins.add_child(panel)
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 18)
-	panel.add_child(UI_FACTORY.apply_margin(root, 28))
+	root.add_theme_constant_override("separation", _sz.panel_gap)
+	panel.add_child(UI_FACTORY.apply_margin(root, _sz.panel_pad))
 
 	var header := HBoxContainer.new()
 	header.alignment = BoxContainer.ALIGNMENT_CENTER
-	header.add_theme_constant_override("separation", 16)
+	header.add_theme_constant_override("separation", 18 if _sz.is_phone else 16)
 	root.add_child(header)
 
 	header.add_child(UI_FACTORY.build_title_label("Level Selection", _sz.title_large))
@@ -67,18 +73,18 @@ func _ready() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0.0, clampf(vp.y * 0.45, 240.0, 400.0))
+	scroll.custom_minimum_size = Vector2(0.0, clampf(vp.y * (0.42 if _sz.is_phone else 0.34), 240.0 if _sz.is_phone else 180.0, 420.0 if _sz.is_phone else 320.0))
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	root.add_child(scroll)
 
 	var scroll_margin := MarginContainer.new()
 	scroll_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll_margin.add_theme_constant_override("margin_right", 18)
+	scroll_margin.add_theme_constant_override("margin_right", maxi(8, int(_sz.screen_margin * 0.75)))
 	scroll.add_child(scroll_margin)
 
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 12)
+	list.add_theme_constant_override("separation", 14 if _sz.is_phone else 12)
 	scroll_margin.add_child(list)
 
 	for index in LEVEL_CATALOG_SCRIPT.count():
@@ -88,7 +94,7 @@ func _ready() -> void:
 		list.add_child(_build_coming_soon_row(LEVEL_CATALOG_SCRIPT.count() + offset))
 
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0.0, 8.0)
+	spacer.custom_minimum_size = Vector2(0.0, clampf(_vp.y * 0.012, 6.0, 16.0))
 	root.add_child(spacer)
 
 	var back_button := UI_FACTORY.build_button("Back To Title", "exit", 999)
@@ -102,16 +108,16 @@ func _style_menu_button(button: Button) -> void:
 
 func _build_total_score_row() -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", maxi(10, int(_sz.body * 0.45)))
 	row.alignment = BoxContainer.ALIGNMENT_END
 
 	var label := UI_FACTORY.build_body_label("Total Score", _sz.body, false)
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	label.custom_minimum_size = Vector2(160.0, 0.0)
+	label.custom_minimum_size = Vector2(190.0 if _sz.is_phone else 160.0, 0.0)
 	row.add_child(label)
 
 	var value := UI_FACTORY.build_body_label("%d" % _state.total_score(), _sz.body, false)
-	value.custom_minimum_size = Vector2(SCORE_COLUMN_WIDTH, 0.0)
+	value.custom_minimum_size = Vector2(maxf(SCORE_COLUMN_WIDTH, _sz.body * 4.4), 0.0)
 	value.autowrap_mode = TextServer.AUTOWRAP_OFF
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(value)
@@ -124,7 +130,7 @@ func _build_level_row(index: int) -> Control:
 	var score_text := "%d" % score if unlocked else "-"
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", maxi(10, int(_sz.body * 0.45)))
 
 	var button := UI_FACTORY.build_button(LEVEL_CATALOG_SCRIPT.display_name(index), "primary", 999)
 	_style_menu_button(button)
@@ -136,7 +142,7 @@ func _build_level_row(index: int) -> Control:
 	row.add_child(button)
 
 	var value := UI_FACTORY.build_body_label(score_text, _sz.body, false)
-	value.custom_minimum_size = Vector2(SCORE_COLUMN_WIDTH, 0.0)
+	value.custom_minimum_size = Vector2(maxf(SCORE_COLUMN_WIDTH, _sz.body * 4.4), 0.0)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(value)
 
@@ -144,7 +150,7 @@ func _build_level_row(index: int) -> Control:
 
 func _build_coming_soon_row(index: int) -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", maxi(10, int(_sz.body * 0.45)))
 
 	var button := UI_FACTORY.build_button("Coming Soon", "utility", 999)
 	_style_menu_button(button)
@@ -154,7 +160,7 @@ func _build_coming_soon_row(index: int) -> Control:
 	row.add_child(button)
 
 	var value := UI_FACTORY.build_body_label("-", _sz.body, false)
-	value.custom_minimum_size = Vector2(SCORE_COLUMN_WIDTH, 0.0)
+	value.custom_minimum_size = Vector2(maxf(SCORE_COLUMN_WIDTH, _sz.body * 4.4), 0.0)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(value)
 

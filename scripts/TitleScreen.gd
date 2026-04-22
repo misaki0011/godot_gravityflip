@@ -25,7 +25,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	_add_background()
-	_sz = UI_FACTORY.layout_scale(get_viewport_rect().size.y)
+	_sz = UI_FACTORY.layout_scale(get_viewport_rect().size)
 	_layout_host = Control.new()
 	_layout_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_layout_host)
@@ -42,7 +42,7 @@ func _rebuild_layout() -> void:
 		child.queue_free()
 
 	var viewport_size := get_viewport_rect().size
-	_sz = UI_FACTORY.layout_scale(viewport_size.y)
+	_sz = UI_FACTORY.layout_scale(viewport_size)
 	var use_landscape := viewport_size.x >= viewport_size.y * 1.05
 
 	var center := CenterContainer.new()
@@ -50,10 +50,10 @@ func _rebuild_layout() -> void:
 	_layout_host.add_child(center)
 
 	var margins := MarginContainer.new()
-	margins.add_theme_constant_override("margin_left", 24)
-	margins.add_theme_constant_override("margin_top", 24)
-	margins.add_theme_constant_override("margin_right", 24)
-	margins.add_theme_constant_override("margin_bottom", 24)
+	margins.add_theme_constant_override("margin_left", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_top", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_right", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_bottom", _sz.screen_margin)
 	center.add_child(margins)
 
 	if use_landscape:
@@ -62,12 +62,12 @@ func _rebuild_layout() -> void:
 		_build_portrait_layout(margins, viewport_size)
 
 func _build_landscape_layout(parent: Control, viewport_size: Vector2) -> void:
-	var content_width := clampf(viewport_size.x - 96.0, 960.0, 1320.0)
-	var content_height := clampf(viewport_size.y - 96.0, 540.0, 720.0)
+	var content_width := clampf(viewport_size.x - float(_sz.screen_margin * 2), viewport_size.x * 0.72, viewport_size.x)
+	var content_height := clampf(viewport_size.y - float(_sz.screen_margin * 2), viewport_size.y * 0.68, viewport_size.y)
 
 	var root := HBoxContainer.new()
 	root.custom_minimum_size = Vector2(content_width, content_height)
-	root.add_theme_constant_override("separation", 28)
+	root.add_theme_constant_override("separation", int(clampf(viewport_size.y * 0.03, 18.0, 36.0)))
 	parent.add_child(root)
 
 	var hero := CenterContainer.new()
@@ -79,15 +79,15 @@ func _build_landscape_layout(parent: Control, viewport_size: Vector2) -> void:
 	var actions_width := logo_size.x / 3.0
 
 	var actions_panel := UI_FACTORY.build_panel()
-	actions_panel.custom_minimum_size = Vector2(actions_width, minf(266.0, content_height * 0.5))
+	actions_panel.custom_minimum_size = Vector2(actions_width, 0.0)
 	actions_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	root.add_child(actions_panel)
-	actions_panel.add_child(UI_FACTORY.apply_margin(_build_actions_box(false), 14))
+	actions_panel.add_child(UI_FACTORY.apply_margin(_build_actions_box(false), maxi(12, int(_sz.panel_pad * 0.5))))
 
 func _build_portrait_layout(parent: Control, viewport_size: Vector2) -> void:
-	var content_width := clampf(viewport_size.x - 72.0, 320.0, 980.0)
-	var hero_width := clampf(viewport_size.x - 28.0, content_width, 1100.0)
-	var available_height := viewport_size.y - 48.0
+	var content_width := clampf(viewport_size.x - float(_sz.screen_margin * 2), viewport_size.x * 0.78, viewport_size.x)
+	var hero_width := clampf(viewport_size.x - float(_sz.screen_margin), content_width, viewport_size.x)
+	var available_height := viewport_size.y - float(_sz.screen_margin * 2)
 	var hero_height := available_height * (2.0 / 3.0)
 	var buttons_height := available_height - hero_height
 	var logo_size := Vector2(hero_width, hero_height)
@@ -110,17 +110,20 @@ func _build_portrait_layout(parent: Control, viewport_size: Vector2) -> void:
 	var actions_panel := UI_FACTORY.build_panel()
 	actions_panel.anchor_left = 0.5
 	actions_panel.anchor_right = 0.5
-	actions_panel.anchor_top = 0.0
-	actions_panel.anchor_bottom = 1.0
+	actions_panel.anchor_top = 0.5
+	actions_panel.anchor_bottom = 0.5
+	var btn_height := clampf(buttons_height / 4.5, _sz.btn_height * 0.85, _sz.btn_height * 1.12)
+	var btn_font := maxi(int(_sz.btn_font * 0.9), int(btn_height * 0.40))
+	var btn_icon := btn_height * 0.55
+	var panel_pad := maxi(10, int(_sz.panel_pad * 0.42))
+	var panel_sep := 8.0
+	var panel_h := float(panel_pad * 2) + btn_icon + btn_height * 3.0 + panel_sep * 3.0
 	actions_panel.offset_left = -actions_width * 0.5
 	actions_panel.offset_right = actions_width * 0.5
-	actions_panel.offset_top = 0.0
-	actions_panel.offset_bottom = 0.0
+	actions_panel.offset_top = -panel_h * 0.5
+	actions_panel.offset_bottom = panel_h * 0.5
 	btn_holder.add_child(actions_panel)
-	var btn_height := buttons_height / 4.5
-	var btn_font := maxi(14, int(btn_height * 0.38))
-	var btn_icon := btn_height * 0.55
-	actions_panel.add_child(UI_FACTORY.apply_margin(_build_actions_box(true, btn_height, btn_font, btn_icon), 12))
+	actions_panel.add_child(UI_FACTORY.apply_margin(_build_actions_box(true, btn_height, btn_font, btn_icon), panel_pad))
 
 func _build_logo_wrap(size: Vector2) -> Control:
 	var logo_wrap := Control.new()
@@ -207,19 +210,19 @@ func _build_overlay() -> void:
 	_overlay.add_child(center)
 
 	var margins := MarginContainer.new()
-	margins.add_theme_constant_override("margin_left", 24)
-	margins.add_theme_constant_override("margin_top", 24)
-	margins.add_theme_constant_override("margin_right", 24)
-	margins.add_theme_constant_override("margin_bottom", 24)
+	margins.add_theme_constant_override("margin_left", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_top", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_right", _sz.screen_margin)
+	margins.add_theme_constant_override("margin_bottom", _sz.screen_margin)
 	center.add_child(margins)
 
 	var panel := UI_FACTORY.build_panel()
-	panel.custom_minimum_size = Vector2(minf(680.0, vp.x - 48.0), 0.0)
+	panel.custom_minimum_size = Vector2(clampf(vp.x - float(_sz.screen_margin * 2), vp.x * 0.78, vp.x), 0.0)
 	margins.add_child(panel)
 
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", maxi(12, int(vp.y * 0.018)))
-	panel.add_child(UI_FACTORY.apply_margin(content, 28))
+	content.add_theme_constant_override("separation", _sz.panel_gap)
+	panel.add_child(UI_FACTORY.apply_margin(content, _sz.panel_pad))
 
 	content.add_child(UI_FACTORY.build_title_label("How To Play", _sz.title_large))
 	content.add_child(UI_FACTORY.build_body_label("Gravity Flip Lab is a simple action game where momentum keeps going even when gravity changes.", _sz.body, true))
@@ -230,7 +233,7 @@ func _build_overlay() -> void:
 		input_image.texture = TAP_SPACE_TEXTURE
 		input_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		input_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		input_image.custom_minimum_size = Vector2(0.0, clampf(vp.y * 0.22, 120.0, 200.0))
+		input_image.custom_minimum_size = Vector2(0.0, clampf(vp.y * 0.22, vp.y * 0.14, vp.y * 0.28))
 		input_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		content.add_child(input_image)
 
